@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bizarro - Sistema Profesional de Asistencias</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+      * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+      body {
+        background-color: #243342;
+        color: #ffffff;
+        margin: 0;
+        padding: 20px 12px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+      .card {
+        width: 100%; max-width: 440px; background: #2b3d4f; border-radius: 20px;
+        padding: 22px 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); border: 1px solid #364b60;
+      }
+      .header-card { background: #202d3a; border-radius: 16px; padding: 20px 15px; text-align: center; border: 1px solid #2d3f52; margin-bottom: 20px; }
+      .title-main { color: #00e676; font-size: 34px; font-weight: 800; letter-spacing: 2px; margin: 0; text-shadow: 0 0 15px rgba(0, 230, 118, 0.25); }
+      .subtitle-1 { color: #b0bec5; font-size: 13px; letter-spacing: 1px; margin: 6px 0 14px 0; font-weight: 600; }
+      .subtitle-2 { color: #ffb300; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; margin: 0; }
+      .divider { height: 3px; background: #00e676; border-radius: 2px; margin: 18px auto; width: 80%; box-shadow: 0 0 10px #00e676; }
+      .status-box { background: #203342; color: #26a69a; border: 1px solid #2a4356; border-radius: 12px; padding: 12px; text-align: center; font-size: 14px; margin-bottom: 12px; transition: all 0.3s ease; }
+      .gps-status { background: #1c2b36; color: #29b6f6; border: 1px solid #253949; border-radius: 10px; padding: 8px 12px; text-align: center; font-size: 12px; margin-bottom: 15px; font-weight: 600; }
+      
+      /* ESTILO DEL MAPA DE GOOGLE */
+      #mapaGoogle {
+        width: 100%;
+        height: 220px;
+        border-radius: 12px;
+        border: 1px solid #364b60;
+        margin-bottom: 15px;
+        display: none;
+      }
+
+      .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; transition: background 0.2s; }
+      .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .btn-scanner { background: #2e7d32; color: #ffffff; }
+      .btn-scanner:hover { background: #388e3c; }
+      .btn-register { background: #ffb300; color: #1c2b36; }
+      .btn-admin { background: #26a69a; color: #ffffff; }
+      .btn-reports { background: #29b6f6; color: #ffffff; }
+      
+      .camera-wrapper {
+        position: relative;
+        width: 100%;
+        margin-bottom: 12px;
+        border-radius: 12px;
+        overflow: hidden;
+        display: none;
+        border: 2px solid #00e676;
+        box-shadow: 0 0 15px rgba(0, 230, 118, 0.3);
+      }
+      #reader { width: 100%; background: #000; min-height: 250px; }
+      .scan-line {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: #00e676;
+        box-shadow: 0 0 12px #00e676, 0 0 20px #00e676;
+        z-index: 10;
+        display: none;
+        animation: scanAnim 2.2s infinite ease-in-out;
+      }
+      @keyframes scanAnim {
+        0% { top: 5%; }
+        50% { top: 90%; }
+        100% { top: 5%; }
+      }
+
+      .input-box { width: 100%; padding: 12px; background: #202d3a; border: 2px solid #37474f; border-radius: 12px; color: #ffffff; font-size: 18px; text-align: center; font-weight: bold; letter-spacing: 2px; margin-bottom: 12px; outline: none; }
+      .input-box:focus { border-color: #00e676; }
+      .bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+      
+      #msg { display: none; padding: 12px; border-radius: 10px; text-align: center; font-weight: bold; font-size: 13px; margin-bottom: 12px; }
+      .msg-ok { background: rgba(0, 230, 118, 0.2); color: #00e676; border: 1px solid #00e676; }
+      .msg-err { background: rgba(244, 67, 54, 0.2); color: #ef5350; border: 1px solid #ef5350; }
+
+      .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 18, 26, 0.85); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 15px; }
+      .modal-box { background: #253545; border: 1px solid #364b60; border-radius: 20px; padding: 30px 25px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+      .modal-title { color: #00e676; font-size: 24px; font-weight: 800; margin: 0 0 15px 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+      .modal-subtitle { color: #ffffff; font-size: 16px; margin: 0 0 20px 0; }
+      .modal-input { width: 100%; padding: 14px; background: #32465a; border: 2px solid #00e676; border-radius: 12px; color: #ffffff; font-size: 22px; text-align: center; letter-spacing: 4px; margin-bottom: 25px; outline: none; }
+      .modal-btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .btn-acc { background: #2ecc71; color: #ffffff; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+      .btn-canc { background: #a94420; color: #ffffff; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+      .modal-error { color: #ff5252; font-size: 13px; margin-bottom: 12px; display: none; font-weight: bold; }
+
+      .admin-panel-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1d2a37; z-index: 2000; overflow-y: auto; padding: 20px 15px; }
+      .admin-container { max-width: 900px; margin: 0 auto; }
+      .banner-success { background: #1bb967; color: #ffffff; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 15px; margin-bottom: 20px; }
+      .panel-top-btns { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; }
+      .btn-panel-tab { background: #16a085; color: #fff; padding: 10px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+      .btn-reports-tab { background: #2980b9; color: #fff; padding: 10px 20px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+
+      .admin-card { background: #2b3a4a; border: 1px solid #384c5f; border-radius: 12px; padding: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+      .panel-main-title { color: #1abc9c; text-align: center; font-size: 22px; font-weight: 800; letter-spacing: 1.5px; margin: 0 0 20px 0; }
+
+      .tabs-header { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; background: #22303e; padding: 6px; border-radius: 10px; }
+      .tab-btn { background: transparent; border: none; color: #95a5a6; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
+      .tab-btn.active { background: #1abc9c; color: #ffffff; }
+
+      .form-group { margin-bottom: 16px; }
+      .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+      .form-label { display: block; color: #1abc9c; font-size: 13px; font-weight: bold; margin-bottom: 6px; }
+      
+      .form-input, .form-select { width: 100%; background: #35485a; border: 1px solid #486178; border-radius: 8px; padding: 12px 15px; color: #ffffff; font-size: 14px; outline: none; }
+      .form-input:focus, .form-select:focus { border-color: #1abc9c; }
+
+      .checkbox-row { display: flex; align-items: center; gap: 8px; color: #1abc9c; font-size: 13px; margin: 15px 0; font-weight: bold; }
+
+      .action-btn-center { display: flex; justify-content: center; margin-top: 20px; }
+      .btn-submit-green { background: #27ae60; color: #fff; border: none; padding: 12px 30px; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
+      .btn-submit-red { background: #e74c3c; color: #fff; border: none; padding: 12px 30px; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
+      .btn-submit-gold { background: #f1c40f; color: #1d2a37; border: none; padding: 12px 30px; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
+
+      .bottom-panel-actions { display: flex; justify-content: center; gap: 15px; margin-top: 25px; }
+      .btn-gen-report { background: #3498db; color: #fff; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+      .btn-close-panel { background: #8e2a0b; color: #fff; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+      .emp-item { background: #233140; border: 1px solid #324557; border-radius: 8px; padding: 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+      .emp-name { font-weight: bold; font-size: 15px; color: #ffffff; }
+      .emp-sub { font-size: 12px; color: #1abc9c; margin-top: 2px; }
+      .emp-details { font-size: 12px; color: #bdc3c7; margin-top: 4px; }
+      .btn-desactivar { background: #c0392b; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+      .special-actions { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+      .btn-refresh-list { background: #3498db; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="header-card">
+        <h1 class="title-main">BIZARRO</h1>
+        <div class="subtitle-1">RESTAURANT & CAFE</div>
+        <div class="subtitle-2">SISTEMA PROFESIONAL DE ASISTENCIAS</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="status-box" id="cameraStatus">📹 Cámara lista para escanear</div>
+      <div class="gps-status" id="gpsStatus">📍 Obteniendo ubicación GPS...</div>
+      
+      <!-- CONTENEDOR DE GOOGLE MAPS GRATUITO POR IFRAME -->
+      <iframe id="mapaGoogle" frameborder="0" allowfullscreen></iframe>
+
+      <div class="camera-wrapper" id="cameraWrapper">
+        <div class="scan-line" id="scanLine"></div>
+        <div id="reader"></div>
+      </div>
+
+      <button type="button" class="btn btn-scanner" id="btnToggleCam" onclick="toggleCamara()">📷 Iniciar Escáner</button>
+      <input type="text" id="codigoInput" class="input-box" placeholder="CÓDIGO EMPLEADO" maxlength="10" onkeypress="if(event.key==='Enter') procesarMarcacion()">
+      <button type="button" class="btn btn-register" id="btnRegistrar" onclick="procesarMarcacion()">✅ Registrar Asistencia</button>
+
+      <div id="msg"></div>
+
+      <div class="bottom-row">
+        <button type="button" class="btn btn-admin" onclick="abrirModalAdmin()">⚙️ Panel Admin</button>
+        <button type="button" class="btn btn-reports" onclick="abrirModalAdmin()">📊 Reportes</button>
+      </div>
+    </div>
+
+    <!-- MODAL DE CONTRASEÑA ADMIN -->
+    <div id="modalAdminAccess" class="modal-overlay">
+      <div class="modal-box">
+        <h2 class="modal-title">🔒 Acceso Administrativo</h2>
+        <p class="modal-subtitle">Ingrese la contraseña para acceder al panel:</p>
+        <input type="password" id="adminPassInput" class="modal-input" placeholder="••••" onkeypress="if(event.key==='Enter') validarAdmin()">
+        <div id="adminErrorMsg" class="modal-error"></div>
+        <div class="modal-btn-row">
+          <button type="button" class="btn-acc" onclick="validarAdmin()">✓ Acceder</button>
+          <button type="button" class="btn-canc" onclick="cerrarModalAdmin()">✕ Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL DE ADMINISTRACIÓN COMPLETO -->
+    <div id="fullAdminPanel" class="admin-panel-overlay">
+      <div class="admin-container">
+        <div class="banner-success">✓ Acceso administrativo concedido</div>
+
+        <div class="panel-top-btns">
+          <button class="btn-panel-tab">⚙️ Panel Administrativo</button>
+          <button class="btn-reports-tab" onclick="cambiarTab('tabGestionar', document.querySelectorAll('.tab-btn')[1]); cargarEmpleados();">📊 Reportes Avanzados</button>
+        </div>
+
+        <div class="admin-card">
+          <h2 class="panel-main-title">PANEL DE ADMINISTRACIÓN</h2>
+
+          <!-- PESTAÑAS -->
+          <div class="tabs-header">
+            <button class="tab-btn active" onclick="cambiarTab('tabAgregar', this)">➕ Agregar</button>
+            <button class="tab-btn" onclick="cambiarTab('tabGestionar', this)">👥 Gestionar</button>
+            <button class="tab-btn" onclick="cambiarTab('tabReemplazar', this)">🔄 Reemplazar</button>
+            <button class="tab-btn" onclick="cambiarTab('tabMismoSueldo', this)">💰 Mismo Sueldo</button>
+          </div>
+
+          <!-- TAB 1: AGREGAR -->
+          <div id="tabAgregar" class="tab-content">
+            <div class="form-group">
+              <label class="form-label">Nombre del Empleado:</label>
+              <input type="text" id="addNombre" class="form-input" placeholder="Ej: María García">
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Sueldo Mensual (S/):</label>
+                <input type="number" id="addSueldo" class="form-input" placeholder="Ej: 1200">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Hora de Entrada:</label>
+                <select id="addHora" class="form-select">
+                  <option value="12:00 PM">12:00 PM (Supervisores)</option>
+                  <option value="17:00 PM" selected>17:00 PM</option>
+                  <option value="18:00 PM">18:00 PM</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Día de Descanso:</label>
+                <select id="addDescanso" class="form-select">
+                  <option>Domingo</option>
+                  <option>Lunes</option>
+                  <option>Martes</option>
+                  <option>Miércoles</option>
+                  <option>Jueves</option>
+                  <option>Viernes</option>
+                  <option>Sábado</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tipo de Empleado:</label>
+                <select id="addTipo" class="form-select">
+                  <option>Staff general</option>
+                  <option>mozo</option>
+                  <option>cocina</option>
+                  <option>barman</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="action-btn-center">
+              <button class="btn-submit-green" onclick="guardarNuevoEmpleado()">➕ Agregar Empleado</button>
+            </div>
+          </div>
+
+          <!-- TAB 2: GESTIONAR -->
+          <div id="tabGestionar" class="tab-content" style="display:none;">
+            <label class="form-label" style="margin-bottom:12px;">Lista de Empleados</label>
+            <div id="contenedorListaEmpleados">Cargando lista de la hoja de cálculo...</div>
+
+            <div class="special-actions">
+              <button class="btn-refresh-list" onclick="cargarEmpleados()">🔄 Actualizar Lista</button>
+            </div>
+          </div>
+
+          <!-- TAB 3: REEMPLAZAR -->
+          <div id="tabReemplazar" class="tab-content" style="display:none;">
+            <div class="form-group">
+              <label class="form-label">Código del Empleado a Reemplazar:</label>
+              <select id="repCodigo" class="form-select" onchange="autocompletarCamposReemplazar()"></select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nuevo Nombre:</label>
+              <input type="text" id="repNombre" class="form-input" placeholder="Nuevo nombre del empleado">
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Nuevo Sueldo (S/):</label>
+                <input type="number" id="repSueldo" class="form-input" placeholder="Nuevo sueldo">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Nuevo Horario:</label>
+                <select id="repHorario" class="form-select">
+                  <option>12:00 PM</option>
+                  <option>17:00 PM</option>
+                  <option>18:00 PM</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Nuevo Día de Descanso:</label>
+                <select id="repDescanso" class="form-select">
+                  <option>Domingo</option>
+                  <option>Lunes</option>
+                  <option>Martes</option>
+                  <option>Miércoles</option>
+                  <option>Jueves</option>
+                  <option>Viernes</option>
+                  <option>Sábado</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Nuevo Tipo:</label>
+                <select id="repTipo" class="form-select">
+                  <option>Staff general</option>
+                  <option>mozo</option>
+                  <option>cocina</option>
+                  <option>barman</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="checkbox-row">
+              <input type="checkbox" id="repTransf" checked>
+              <label for="repTransf">Transferir datos de asistencia anteriores</label>
+            </div>
+
+            <div class="action-btn-center">
+              <button class="btn-submit-red" onclick="ejecutarReemplazo()">🔄 Reemplazar Empleado</button>
+            </div>
+          </div>
+
+          <!-- TAB 4: MISMO SUELDO -->
+          <div id="tabMismoSueldo" class="tab-content" style="display:none;">
+            <div class="form-group">
+              <label class="form-label">Código del Empleado a Cambiar:</label>
+              <select id="msCodigo" class="form-select" onchange="autocompletarCamposMismoSueldo()"></select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nuevo Nombre:</label>
+              <input type="text" id="msNombre" class="form-input" placeholder="Nuevo nombre del empleado">
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Nuevo Horario:</label>
+                <select id="msHorario" class="form-select">
+                  <option>12:00 PM</option>
+                  <option>17:00 PM</option>
+                  <option>18:00 PM</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Nuevo Día de Descanso:</label>
+                <select id="msDescanso" class="form-select">
+                  <option>Domingo</option>
+                  <option>Lunes</option>
+                  <option>Martes</option>
+                  <option>Miércoles</option>
+                  <option>Jueves</option>
+                  <option>Viernes</option>
+                  <option>Sábado</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nuevo Tipo:</label>
+              <select id="msTipo" class="form-select">
+                <option>Staff general</option>
+                <option>mozo</option>
+                <option>cocina</option>
+                <option>barman</option>
+              </select>
+            </div>
+
+            <div class="checkbox-row">
+              <input type="checkbox" id="msTransf" checked>
+              <label for="msTransf">Transferir datos de asistencia anteriores</label>
+            </div>
+
+            <div class="action-btn-center">
+              <button class="btn-submit-gold" onclick="ejecutarMismoSueldo()">💰 Cambiar (Mismo Sueldo)</button>
+            </div>
+          </div>
+
+          <div class="bottom-panel-actions">
+            <button class="btn-gen-report" onclick="alert('Abriendo la pestaña de Asistencias en Google Sheets...'); window.open(window.location.href, '_blank');">📊 Abrir Registro General</button>
+            <button class="btn-close-panel" onclick="cerrarPanelAdmin()">✕ Cerrar Panel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+   <script>
+  // ==========================================================
+  // CONFIGURACIÓN DE CONEXIÓN A GOOGLE APPS SCRIPT
+  // ==========================================================
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxukURqhlR3mKsNlesww7qQCejYbqNJc4Ds-WKDjHbG5K5uqtH0kGDHaNeeX-pI8O31VA/exec';
+
+  async function callBackend(action, params = []) {
+      const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action, params })
+      });
+      if (!response.ok) {
+          throw new Error('Error de red: ' + response.status);
+      }
+      return await response.json();
+  }
+
+  // ==========================================================
+  // VARIABLES GLOBALES Y ESTADO
+  // ==========================================================
+  var listaGlobalEmpleados = [];
+  var html5QrCode = null;
+  var isScanning = false;
+
+  var ubicacionGPS = {
+    latitud: null,
+    longitud: null,
+    precision: null,
+    disponible: false
+  };
+
+  window.onload = function() {
+    obtenerGPS();
+  };
+
+  // ==========================================================
+  // GEOLOCALIZACIÓN Y MAPA
+  // ==========================================================
+  function obtenerGPS() {
+    var gpsBox = document.getElementById('gpsStatus');
+
+    if (!navigator.geolocation) {
+      ubicacionGPS.disponible = false;
+      gpsBox.innerText = "❌ Este dispositivo no soporta GPS";
+      gpsBox.style.color = "#ef5350";
+      return;
+    }
+
+    gpsBox.innerText = "📍 Solicitando ubicación...";
+    gpsBox.style.color = "#ffb300";
+
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        ubicacionGPS.latitud = position.coords.latitude;
+        ubicacionGPS.longitud = position.coords.longitude;
+        ubicacionGPS.precision = position.coords.accuracy;
+        ubicacionGPS.disponible = true;
+
+        gpsBox.innerText =
+          "📍 GPS ACTIVO\n" +
+          "Lat: " + ubicacionGPS.latitud.toFixed(6) +
+          " | Lon: " + ubicacionGPS.longitud.toFixed(6) +
+          " | ±" + Math.round(ubicacionGPS.precision) + "m";
+
+        gpsBox.style.color = "#00e676";
+
+        actualizarMapa(ubicacionGPS.latitud, ubicacionGPS.longitud);
+        console.log("GPS obtenido:", ubicacionGPS);
+      },
+      function(error) {
+        ubicacionGPS.disponible = false;
+        var mensaje = "";
+
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            mensaje = "❌ Permiso de ubicación denegado";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            mensaje = "⚠️ Ubicación no disponible";
+            break;
+          case error.TIMEOUT:
+            mensaje = "⏳ Tiempo agotado obteniendo GPS";
+            break;
+          default:
+            mensaje = "⚠️ No se pudo obtener la ubicación";
+        }
+
+        gpsBox.innerText = mensaje;
+        gpsBox.style.color = "#ef5350";
+        console.error("Error GPS:", error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      }
+    );
+  }
+
+  function actualizarMapa(lat, lng) {
+    var iframeMapa = document.getElementById("mapaGoogle");
+    if (iframeMapa) {
+      iframeMapa.src = "https://maps.google.com/maps?q=" + lat + "," + lng + "&z=16&output=embed";
+      iframeMapa.style.display = "block";
+    }
+  }
+
+  // ==========================================================
+  // ESCÁNER QR
+  // ==========================================================
+  function toggleCamara() {
+    var wrapper = document.getElementById('cameraWrapper');
+    var scanLine = document.getElementById('scanLine');
+    var btn = document.getElementById('btnToggleCam');
+    var statusBox = document.getElementById('cameraStatus');
+
+    if (isScanning) {
+      detenerCamara();
+    } else {
+      wrapper.style.display = 'block';
+      scanLine.style.display = 'block';
+      statusBox.innerText = '⌛ Iniciando cámara...';
+      statusBox.style.color = '#ffb300';
+      
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("reader");
+      }
+
+      var qrConfig = {
+        fps: 15,
+        qrbox: { width: 220, height: 220 },
+        aspectRatio: 1.0
+      };
+
+      html5QrCode.start({ facingMode: "environment" }, qrConfig, onScanSuccess)
+        .catch(function() {
+          return html5QrCode.start({ facingMode: "user" }, qrConfig, onScanSuccess);
+        })
+        .then(function() {
+          btn.innerText = '⏹️ Detener Escáner';
+          btn.style.background = '#c0392b';
+          statusBox.innerText = '📹 Escaneando código QR...';
+          statusBox.style.color = '#00e676';
+          isScanning = true;
+        })
+        .catch(function(err) {
+          detenerCamara();
+          mostrarMensaje("No se pudo acceder a la cámara. Permite el acceso e intenta de nuevo.", false);
+          statusBox.innerText = '⚠️ Error de acceso a cámara';
+          statusBox.style.color = '#ef5350';
+        });
+    }
+  }
+
+  function detenerCamara() {
+    var wrapper = document.getElementById('cameraWrapper');
+    var scanLine = document.getElementById('scanLine');
+    var btn = document.getElementById('btnToggleCam');
+    var statusBox = document.getElementById('cameraStatus');
+
+    if (html5QrCode && isScanning) {
+      html5QrCode.stop().then(function() {
+        html5QrCode.clear();
+        wrapper.style.display = 'none';
+        scanLine.style.display = 'none';
+        btn.innerText = '📷 Iniciar Escáner';
+        btn.style.background = '#2e7d32';
+        statusBox.innerText = '📹 Cámara lista para escanear';
+        statusBox.style.color = '#26a69a';
+        isScanning = false;
+      }).catch(function(err) {
+        console.error("Error deteniendo cámara:", err);
+        wrapper.style.display = 'none';
+        scanLine.style.display = 'none';
+        isScanning = false;
+      });
+    } else {
+      wrapper.style.display = 'none';
+      scanLine.style.display = 'none';
+      btn.innerText = '📷 Iniciar Escáner';
+      btn.style.background = '#2e7d32';
+      statusBox.innerText = '📹 Cámara lista para escanear';
+      statusBox.style.color = '#26a69a';
+      isScanning = false;
+    }
+  }
+
+  function onScanSuccess(decodedText) {
+    if (navigator.vibrate) {
+      navigator.vibrate(150);
+    }
+    document.getElementById('codigoInput').value = decodedText;
+    detenerCamara();
+    procesarMarcacion();
+  }
+
+  // ==========================================================
+  // REGISTRO DE ASISTENCIA (LLAMADA A BACKEND)
+  // ==========================================================
+  function procesarMarcacion() {
+    var codigo = document.getElementById('codigoInput').value.trim();
+    var btn = document.getElementById('btnRegistrar');
+    var gpsBox = document.getElementById('gpsStatus');
+
+    if (!codigo) {
+      mostrarMensaje("❌ Ingrese un código válido.", false);
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      mostrarMensaje("❌ Este dispositivo no soporta geolocalización.", false);
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "📍 Obteniendo ubicación...";
+
+    gpsBox.innerText = "📍 Obteniendo ubicación para registrar...";
+    gpsBox.style.color = "#ffb300";
+
+    navigator.geolocation.getCurrentPosition(
+      async function(position) {
+        var latitud = position.coords.latitude;
+        var longitud = position.coords.longitude;
+        var precision = position.coords.accuracy;
+
+        ubicacionGPS.latitud = latitud;
+        ubicacionGPS.longitud = longitud;
+        ubicacionGPS.precision = precision;
+        ubicacionGPS.disponible = true;
+
+        gpsBox.innerText =
+          "📍 GPS ACTIVO\n" +
+          "Lat: " + latitud.toFixed(6) +
+          " | Lon: " + longitud.toFixed(6) +
+          " | ±" + Math.round(precision) + "m";
+
+        gpsBox.style.color = "#00e676";
+
+        actualizarMapa(latitud, longitud);
+
+        var datos = {
+          codigo: codigo,
+          latitud: latitud,
+          longitud: longitud
+        };
+
+        btn.innerText = "⏳ Registrando...";
+
+        try {
+          const res = await callBackend('registrarAsistencia', [datos]);
+          btn.disabled = false;
+          btn.innerText = "✅ Registrar Asistencia";
+
+          if (res && res.message) {
+            mostrarMensaje(res.message, res.success !== false);
+          } else {
+            mostrarMensaje("✅ Marcación registrada correctamente.", true);
+          }
+
+          document.getElementById('codigoInput').value = '';
+        } catch (error) {
+          btn.disabled = false;
+          btn.innerText = "✅ Registrar Asistencia";
+          console.error("Error Apps Script:", error);
+          mostrarMensaje("❌ Error al registrar: " + (error.message || error), false);
+        }
+      },
+      function(error) {
+        btn.disabled = false;
+        btn.innerText = "✅ Registrar Asistencia";
+        ubicacionGPS.disponible = false;
+
+        var mensaje = "";
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            mensaje = "❌ Ubicación bloqueada. Activa el permiso de ubicación.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            mensaje = "⚠️ No se pudo determinar tu ubicación. Activa el GPS.";
+            break;
+          case error.TIMEOUT:
+            mensaje = "⏳ El GPS tardó demasiado. Intenta nuevamente.";
+            break;
+          default:
+            mensaje = "❌ Error desconocido obteniendo ubicación.";
+        }
+
+        gpsBox.innerText = mensaje;
+        gpsBox.style.color = "#ef5350";
+        mostrarMensaje(mensaje, false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      }
+    );
+  }
+
+  function mostrarMensaje(text, isOk) {
+    var msgBox = document.getElementById('msg');
+    msgBox.innerText = text;
+    msgBox.className = isOk ? 'msg-ok' : 'msg-err';
+    msgBox.style.display = 'block';
+    setTimeout(function() { msgBox.style.display = 'none'; }, 4000);
+  }
+
+  // ==========================================================
+  // ADMINISTRACIÓN Y GESTIÓN DE EMPLEADOS
+  // ==========================================================
+  function abrirModalAdmin() {
+    document.getElementById('modalAdminAccess').style.display = 'flex';
+    document.getElementById('adminPassInput').value = '';
+    document.getElementById('adminErrorMsg').style.display = 'none';
+    document.getElementById('adminPassInput').focus();
+  }
+
+  function cerrarModalAdmin() { 
+    document.getElementById('modalAdminAccess').style.display = 'none'; 
+  }
+
+  async function validarAdmin() {
+    var pass = document.getElementById('adminPassInput').value;
+    var errBox = document.getElementById('adminErrorMsg');
+    
+    try {
+      const valido = await callBackend('validarPasswordAdmin', [pass]);
+      if (valido) {
+        cerrarModalAdmin();
+        document.getElementById('fullAdminPanel').style.display = 'block';
+        cargarEmpleados();
+      } else {
+        errBox.innerText = 'Contraseña incorrecta';
+        errBox.style.display = 'block';
+      }
+    } catch (error) {
+      console.error("Error validando admin:", error);
+      errBox.innerText = 'Error al validar contraseña';
+      errBox.style.display = 'block';
+    }
+  }
+
+  function cerrarPanelAdmin() { 
+    document.getElementById('fullAdminPanel').style.display = 'none'; 
+  }
+
+  function cambiarTab(tabId, el) {
+    var contents = document.getElementsByClassName('tab-content');
+    for (var i = 0; i < contents.length; i++) contents[i].style.display = 'none';
+    var tabs = document.getElementsByClassName('tab-btn');
+    for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+    document.getElementById(tabId).style.display = 'block';
+    if(el) el.classList.add('active');
+  }
+
+  async function guardarNuevoEmpleado() {
+    var datos = {
+      nombre: document.getElementById('addNombre').value,
+      sueldo: document.getElementById('addSueldo').value,
+      horaEntrada: document.getElementById('addHora').value,
+      descanso: document.getElementById('addDescanso').value,
+      tipo: document.getElementById('addTipo').value
+    };
+
+    try {
+      const res = await callBackend('agregarEmpleado', [datos]);
+      alert(res.message || "Empleado guardado con éxito");
+      cargarEmpleados();
+    } catch (error) {
+      console.error("Error guardando empleado:", error);
+      alert("Error de conexión al guardar el empleado");
+    }
+  }
+
+  async function cargarEmpleados() {
+    try {
+      const html = await callBackend('obtenerListaEmpleadosHTML', []);
+      document.getElementById('contenedorListaEmpleados').innerHTML = html;
+    } catch (error) {
+      console.error("Error cargando empleados:", error);
+    }
+  }
+
+  function renderizarListaGestionar(data) {
+    var cont = document.getElementById('contenedorListaEmpleados');
+    if(!data || data.length === 0) { 
+      cont.innerHTML = '<p style="text-align:center; color:#bdc3c7;">No hay empleados registrados.</p>'; 
+      return; 
+    }
+
+    var html = '';
+    data.forEach(function(emp) {
+      html += '<div class="emp-item"><div>' +
+        '<div class="emp-name">' + emp.nombre + '</div>' +
+        '<div class="emp-sub">' + emp.codigo + ' - ' + emp.tipo + '</div>' +
+        '<div class="emp-details">⏰ ' + emp.horaEntrada + ' | 🏖️ ' + emp.diaDescanso + ' | 💰 S/' + emp.sueldo + '<br>' +
+        '<span style="color:' + (emp.estado === 'ACTIVO' ? '#2ecc71' : '#e74c3c') + '">Estado: ' + emp.estado + '</span></div>' +
+        '</div>';
+      if(emp.estado === 'ACTIVO') {
+        html += '<button class="btn-desactivar" onclick="desactivar(\'' + emp.codigo + '\')">✕ Desactivar</button>';
+      }
+      html += '</div>';
+    });
+    cont.innerHTML = html;
+  }
+
+  function poblarDesplegables(data) {
+    var repSelect = document.getElementById('repCodigo');
+    var msSelect = document.getElementById('msCodigo');
+    repSelect.innerHTML = '<option value="">Seleccionar empleado...</option>';
+    msSelect.innerHTML = '<option value="">Seleccionar empleado...</option>';
+
+    data.forEach(function(e) {
+      if(e.estado === 'ACTIVO') {
+        var opt = '<option value="' + e.codigo + '">' + e.codigo + ' - ' + e.nombre + '</option>';
+        repSelect.innerHTML += opt;
+        msSelect.innerHTML += opt;
+      }
+    });
+  }
+
+  function autocompletarCamposReemplazar() {
+    var cod = document.getElementById('repCodigo').value;
+    var emp = listaGlobalEmpleados.find(function(item) { return item.codigo === cod; });
+    if(emp) {
+      document.getElementById('repNombre').value = emp.nombre;
+      document.getElementById('repSueldo').value = emp.sueldo;
+      document.getElementById('repHorario').value = emp.horaEntrada;
+      document.getElementById('repDescanso').value = emp.diaDescanso;
+      document.getElementById('repTipo').value = emp.tipo;
+    }
+  }
+
+  function autocompletarCamposMismoSueldo() {
+    var cod = document.getElementById('msCodigo').value;
+    var emp = listaGlobalEmpleados.find(function(item) { return item.codigo === cod; });
+    if(emp) {
+      document.getElementById('msNombre').value = emp.nombre;
+      document.getElementById('msHorario').value = emp.horaEntrada;
+      document.getElementById('msDescanso').value = emp.diaDescanso;
+      document.getElementById('msTipo').value = emp.tipo;
+    }
+  }
+
+  async function desactivar(codigo) {
+    if(confirm('¿Seguro de desactivar al empleado ' + codigo + '?')) {
+      try {
+        const res = await callBackend('desactivarEmpleado', [codigo]);
+        alert(res.message);
+        cargarEmpleados();
+      } catch (error) {
+        console.error("Error desactivando empleado:", error);
+        alert("Error de conexión al desactivar empleado");
+      }
+    }
+  }
+
+  async function ejecutarReemplazo() {
+    var datos = {
+      codigoAntiguo: document.getElementById('repCodigo').value,
+      nuevoNombre: document.getElementById('repNombre').value,
+      nuevoSueldo: document.getElementById('repSueldo').value,
+      nuevoHorario: document.getElementById('repHorario').value,
+      nuevoDescanso: document.getElementById('repDescanso').value,
+      nuevoTipo: document.getElementById('repTipo').value,
+      transferirAsistencia: document.getElementById('repTransf').checked
+    };
+    if(!datos.codigoAntiguo || !datos.nuevoNombre) { 
+      alert('Seleccione un empleado e ingrese el nuevo nombre.'); 
+      return; 
+    }
+
+    try {
+      const res = await callBackend('reemplazarEmpleado', [datos]);
+      alert(res.message);
+      cargarEmpleados();
+    } catch (error) {
+      console.error("Error ejecutando reemplazo:", error);
+      alert("Error de conexión al ejecutar el reemplazo");
+    }
+  }
+
+  async function ejecutarMismoSueldo() {
+    var datos = {
+      codigo: document.getElementById('msCodigo').value,
+      nuevoNombre: document.getElementById('msNombre').value,
+      nuevoHorario: document.getElementById('msHorario').value,
+      nuevoDescanso: document.getElementById('msDescanso').value,
+      nuevoTipo: document.getElementById('msTipo').value,
+      transferirAsistencia: document.getElementById('msTransf').checked
+    };
+    if(!datos.codigo || !datos.nuevoNombre) { 
+      alert('Seleccione un empleado e ingrese el nuevo nombre.'); 
+      return; 
+    }
+
+    try {
+      const res = await callBackend('cambiarMismoSueldo', [datos]);
+      alert(res.message);
+      cargarEmpleados();
+    } catch (error) {
+      console.error("Error ejecutando mismo sueldo:", error);
+      alert("Error de conexión al ejecutar cambio de mismo sueldo");
+    }
+  }
+</script>
